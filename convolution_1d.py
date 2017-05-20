@@ -40,7 +40,7 @@ class Convolution1DFunction(convolution_nd.ConvolutionND):
 			x_type.shape[1] == v_type.shape[1],
 		)
 
-		if n_in == 4:
+		if type_check.eval(n_in) == 4:
 			b_type = in_types[3]
 			type_check.expect(
 				b_type.dtype == x_type.dtype,
@@ -85,8 +85,7 @@ class Convolution1DFunction(convolution_nd.ConvolutionND):
 			return gx, gV, gg, gb
 			
 def convolution_1d(x, V, g, b=None, stride=1, pad=0, cover_all=False):
-	ndim = len(x.shape[2:])
-	func = Convolution1DFunction(ndim, stride=stride, pad=pad, cover_all=cover_all)
+	func = Convolution1DFunction(1, stride=stride, pad=pad, cover_all=cover_all)
 	if b is None:
 		return func(x, V, g)
 	else:
@@ -94,16 +93,15 @@ def convolution_1d(x, V, g, b=None, stride=1, pad=0, cover_all=False):
 
 class Convolution1D(link.Link):
 
-	def __init__(self, ndim, in_channels, out_channels, ksize, stride=1, pad=0,
+	def __init__(self, in_channels, out_channels, ksize, stride=1, pad=0,
 				 initialV=None, nobias=False, initial_g=None,
 				 cover_all=False):
 		super(Convolution1D, self).__init__()
-		ksize = conv_nd.as_tuple(ksize, ndim)
-		self.ndim = ndim
+		ksize = conv_nd.as_tuple(ksize, 1)
 		self.ksize = ksize
 		self.nobias = nobias
-		self.stride = _pair(stride)
-		self.pad = _pair(pad)
+		self.stride = stride
+		self.pad = pad
 		self.out_channels = out_channels
 		self.in_channels = in_channels
 		self.cover_all = cover_all
@@ -129,18 +127,18 @@ class Convolution1D(link.Link):
 	def _initialize_params(self, t):
 		xp = cuda.get_array_module(t)
 
-		self.mean_t = xp.mean(t, axis=(0, 2)).reshape(-1, 1, 1)
-		self.std_t = xp.sqrt(xp.var(t, axis=(0, 2))).reshape(-1, 1, 1)
+		self.mean_t = xp.mean(t, axis=(0, 2)).reshape(1, -1, 1)
+		self.std_t = xp.sqrt(xp.var(t, axis=(0, 2))).reshape(1, -1, 1)
 		g = 1 / self.std_t
 		b = -self.mean_t / self.std_t
 
-		print("g <- {}, b <- {}".format(g.reshape((-1,)), b.reshape((-1,))))
+		# print("g <- {}, b <- {}".format(g.reshape((-1,)), b.reshape((-1,))))
 
 		if self.nobias == False:
-			self.add_param("b", self.out_channels, initializer=initializers.Constant(b.reshape((-1,))))
+			self.add_param("b", self.out_channels, initializer=initializers.Constant(b.reshape((-1,)), dtype=t.dtype))
 
 		g_shape = (self.out_channels, 1) + (1,) * len(self.ksize)
-		self.add_param("g", g_shape, initializer=initializers.Constant(g))
+		self.add_param("g", g_shape, initializer=initializers.Constant(g.reshape(g_shape), dtype=t.dtype))
 
 	def __call__(self, x):
 

@@ -25,17 +25,16 @@ import convolution_1d
 class TestConvolutionND(unittest.TestCase):
 
 	def setUp(self):
-		ndim = len(self.dims)
-		self.ksize = (3,) * ndim
-		self.stride = (2,) * ndim
-		self.pad = (1,) * ndim
+		self.ksize = (3,)
+		self.stride = (2,)
+		self.pad = (1,)
 
-		self.link = convolution_1d.Convolution1D(ndim, 3, 2, self.ksize, stride=self.stride, pad=self.pad)
-		self.link.cleargrads()
-
+		self.link = convolution_1d.Convolution1D(3, 2, self.ksize, initialV=initializers.Normal(scale=0.05, dtype=self.dtype), stride=self.stride, pad=self.pad)
 		x_shape = (2, 3) + self.dims
 		self.x = numpy.random.uniform(-1, 1, x_shape).astype(self.dtype)
 		self.link(self.x)	# initialize g and b
+
+		self.link.cleargrads()
 		gy_shape = (2, 2) + tuple(
 			conv.get_conv_outsize(d, k, s, p) for (d, k, s, p) in zip(
 				self.dims, self.ksize, self.stride, self.pad))
@@ -134,9 +133,8 @@ class TestConvolutionND(unittest.TestCase):
 class TestConvolutionNDNoInitialBias(unittest.TestCase):
 
 	def test_no_initial_bias(self):
-		ndim = 3
 		ksize = 3
-		link = convolution_1d.Convolution1D(ndim, 3, 2, ksize, nobias=True)
+		link = convolution_1d.Convolution1D(3, 2, ksize, nobias=True)
 		self.assertIsNone(link.b)
 
 

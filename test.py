@@ -4,6 +4,14 @@ from __future__ import print_function
 from six.moves import xrange
 import numpy as np
 from qrnn import QRNN, QRNNEncoder, QRNNDecoder, QRNNGlobalAttentiveDecoder
+from convolution_1d import Convolution1D
+
+def test_convolution_1d():
+	ksize = 4
+	layer = Convolution1D(3, 30, ksize, pad=ksize-1)
+	x_shape = (2, 3, 5)
+	x = np.random.uniform(-1, 1, x_shape)
+	print(layer(x))
 
 def test_decoder():
 	np.random.seed(0)
@@ -61,5 +69,6 @@ def test_attentive_decoder():
 
 
 if __name__ == "__main__":
+	test_convolution_1d()
 	test_decoder()
 	test_attentive_decoder()
