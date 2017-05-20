@@ -61,7 +61,7 @@ def main(args):
 	# init
 	model = load_model(args.model_dir)
 	if model is None:
-		model = RNNModel(vocab_size, args.ndim_embedding, args.num_blocks, args.num_layers_per_block, ndim_h=args.ndim_h, kernel_size=args.kernel_size, dropout=args.dropout, wgain=args.wgain, ignore_label=ID_PAD)
+		model = RNNModel(vocab_size, args.ndim_embedding, args.num_blocks, args.num_layers_per_block, ndim_h=args.ndim_h, kernel_size=args.kernel_size, dropout=args.dropout, weightnorm=args.weightnorm, wgain=args.wgain, ignore_label=ID_PAD)
 	if args.gpu_device >= 0:
 		chainer.cuda.get_device(args.gpu_device).use()
 		model.to_gpu()
@@ -151,6 +151,7 @@ if __name__ == "__main__":
 	parser.add_argument("--num-blocks", "-blocks", type=int, default=1)
 	parser.add_argument("--wgain", "-w", type=float, default=1)
 	parser.add_argument("--dropout", "-dropout", default=False, action="store_true")
+	parser.add_argument("--weightnorm", "-weightnorm", default=False, action="store_true")
 	parser.add_argument("--buckets-slice", type=int, default=None)
 	parser.add_argument("--model-dir", "-m", type=str, default="model")
 	args = parser.parse_args()

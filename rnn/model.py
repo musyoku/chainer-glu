@@ -50,6 +50,7 @@ def save_model(dirname, model):
 		"num_blocks": model.num_blocks,
 		"kernel_size": model.kernel_size,
 		"dropout": model.dropout,
+		"weightnorm": model.weightnorm,
 		"wgain": model.wgain,
 		"ignore_label": model.ignore_label,
 	}
@@ -79,7 +80,7 @@ def load_model(dirname):
 		return None
 
 class RNNModel(Chain):
-	def __init__(self, vocab_size, ndim_embedding, num_blocks, num_layers_per_block, ndim_h, kernel_size=4, dropout=False, wgain=1, ignore_label=None):
+	def __init__(self, vocab_size, ndim_embedding, num_blocks, num_layers_per_block, ndim_h, kernel_size=4, dropout=False, weightnorm=False, wgain=1, ignore_label=None):
 		super(RNNModel, self).__init__(
 			embed=L.EmbedID(vocab_size, ndim_embedding, ignore_label=ignore_label),
 			dense=L.Linear(ndim_h, vocab_size),
@@ -92,14 +93,15 @@ class RNNModel(Chain):
 		self.num_layers_per_block = num_layers_per_block
 		self.ndim_h = ndim_h
 		self.kernel_size = kernel_size
+		self.weightnorm = weightnorm
 		self.dropout = dropout
 		self.dropout_ratio = 0.5
 		self.wgain = wgain
 		self.ignore_label = ignore_label
 
-		self.add_link("glu0", L.GLU(ndim_embedding, ndim_h, kernel_size=kernel_size, wgain=wgain))
+		self.add_link("glu0", L.GLU(ndim_embedding, ndim_h, kernel_size=kernel_size, wgain=wgain, weightnorm=weightnorm))
 		for i in xrange(1, num_blocks * num_layers_per_block):
-			self.add_link("glu{}".format(i), L.GLU(ndim_h, ndim_h, kernel_size=kernel_size, wgain=wgain))
+			self.add_link("glu{}".format(i), L.GLU(ndim_h, ndim_h, kernel_size=kernel_size, wgain=wgain, weightnorm=weightnorm))
 
 	def get_glu_layer(self, index):
 		return getattr(self, "glu{}".format(index))

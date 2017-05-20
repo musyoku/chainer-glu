@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 import math
 import numpy as np
 from six import moves
@@ -8,18 +8,9 @@ from chainer.utils import conv_nd, type_check
 
 def _get_norm(W):
 	xp = cuda.get_array_module(W)
-	norm = xp.sqrt(xp.sum(W ** 2, axis=(1, 2))) + 1e-9
+	norm = xp.sqrt(xp.sum(W ** 2, axis=(1, 2))) + 1e-32
 	norm = norm.reshape((-1, 1, 1))
 	return norm
-
-def _check_cudnn_acceptable_type(x_dtype, W_dtype):
-	return x_dtype == W_dtype and (
-		_cudnn_version >= 3000 or x_dtype != np.float16)
-
-def _pair(x):
-	if hasattr(x, "__getitem__"):
-		return x
-	return x, x
 
 class Convolution1DFunction(convolution_nd.ConvolutionND):
 		
