@@ -13,7 +13,7 @@ class GLU(link.Chain):
 	def __init__(self, in_channels, out_channels, kernel_size=2, wgain=1., weightnorm=False):
 		if weightnorm:
 			wstd = 0.05
-			W = Convolution1D(in_channels, 2 * out_channels, kernel_size, stride=1, pad=kernel_size - 1, initialV=initializers.Normal(wstd))
+			W = Convolution1D(in_channels, 2 * out_channels, kernel_size, stride=1, pad=kernel_size - 1, initialV=initializers.HeNormal(wstd))
 		else:
 			wstd = math.sqrt(wgain / in_channels / kernel_size)
 			W = links.ConvolutionND(1, in_channels, 2 * out_channels, kernel_size, stride=1, pad=kernel_size - 1, initialW=initializers.Normal(wstd))

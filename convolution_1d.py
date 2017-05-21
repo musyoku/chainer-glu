@@ -84,9 +84,7 @@ def convolution_1d(x, V, g, b=None, stride=1, pad=0, cover_all=False):
 
 class Convolution1D(link.Link):
 
-	def __init__(self, in_channels, out_channels, ksize, stride=1, pad=0,
-				 initialV=None, nobias=False, initial_g=None,
-				 cover_all=False):
+	def __init__(self, in_channels, out_channels, ksize, stride=1, pad=0, initialV=None, nobias=False, cover_all=False):
 		super(Convolution1D, self).__init__()
 		ksize = conv_nd.as_tuple(ksize, 1)
 		self.ksize = ksize
