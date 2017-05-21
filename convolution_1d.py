@@ -118,8 +118,8 @@ class Convolution1D(link.Link):
 	def _initialize_params(self, t):
 		xp = cuda.get_array_module(t)
 
-		self.mean_t = xp.mean(t, axis=(0, 2)).reshape(1, -1, 1)
-		self.std_t = xp.sqrt(xp.var(t, axis=(0, 2))).reshape(1, -1, 1)
+		self.mean_t = xp.mean(t, axis=(0, 2))			# calculate average for each channel
+		self.std_t = xp.sqrt(xp.var(t, axis=(0, 2)))	# calculate stddev for each channel
 		g = 1 / self.std_t
 		b = -self.mean_t / self.std_t
 
@@ -137,6 +137,6 @@ class Convolution1D(link.Link):
 			xp = cuda.get_array_module(x.data)
 			t = convolution_1d(x, self.V, Variable(xp.full((self.out_channels, 1, 1), 1.0).astype(x.dtype)), None, self.stride, self.pad)	# compute output with g = 1 and without bias
 			self._initialize_params(t.data)
-			return (t - self.mean_t) / self.std_t
+			return (t - self.mean_t.reshape(1, -1, 1)) / self.std_t.reshape((1, -1, 1))
 
 		return convolution_1d(x, self.V, self.g, self.b, self.stride, self.pad, cover_all=self.cover_all)

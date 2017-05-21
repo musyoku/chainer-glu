@@ -8,7 +8,7 @@ from convolution_1d import Convolution1D
 
 def test_convolution_1d():
 	ksize = 4
-	layer = Convolution1D(3, 30, ksize, pad=ksize-1)
+	layer = Convolution1D(3, 4, ksize, pad=ksize-1)
 	x_shape = (2, 3, 5)
 	x = np.random.uniform(-1, 1, x_shape)
 	print(layer(x))
