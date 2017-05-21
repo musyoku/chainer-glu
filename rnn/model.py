@@ -95,7 +95,7 @@ class RNNModel(Chain):
 		self.kernel_size = kernel_size
 		self.weightnorm = weightnorm
 		self.dropout = dropout
-		self.dropout_ratio = 0.3
+		self.dropout_ratio = 0.4
 		self.wgain = wgain
 		self.ignore_label = ignore_label
 
