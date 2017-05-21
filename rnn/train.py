@@ -13,6 +13,33 @@ from common import ID_UNK, ID_PAD, ID_BOS, ID_EOS, bucket_sizes, stdout, print_b
 from dataset import read_data, make_buckets, sample_batch_from_bucket, make_source_target_pair
 from error import compute_accuracy, compute_random_accuracy, compute_perplexity, compute_random_perplexity, softmax_cross_entropy
 
+def get_current_learning_rate(opt):
+	if isinstance(opt, optimizers.NesterovAG):
+		return opt.lr
+	if isinstance(opt, optimizers.Adam):
+		return opt.alpha
+	raise NotImplementationError()
+
+def get_optimizer(name, lr, momentum):
+	if name == "nesterov":
+		return optimizers.NesterovAG(lr=lr, momentum=momentum)
+	if name == "adam":
+		return optimizers.Adam(alpha=lr, beta1=momentum)
+	raise NotImplementationError()
+
+def decay_learning_rate(opt, factor, final_value):
+	if isinstance(opt, optimizers.NesterovAG):
+		if opt.lr <= final_value:
+			return
+		opt.lr *= factor
+		return
+	if isinstance(opt, optimizers.Adam):
+		if opt.alpha <= final_value:
+			return
+		opt.alpha *= factor
+		return
+	raise NotImplementationError()
+
 def main(args):
 	# load textfile
 	dataset_train, dataset_dev, _, vocab, vocab_inv = read_data(args.train_filename, args.dev_filename)
@@ -67,11 +94,11 @@ def main(args):
 		model.to_gpu()
 
 	# setup an optimizer
-	optimizer = optimizers.Adam(alpha=args.learning_rate, beta1=args.momentum)
+	optimizer = get_optimizer(args.optimizer, args.learning_rate, args.momentum)
 	optimizer.setup(model)
 	optimizer.add_hook(chainer.optimizer.GradientClipping(args.grad_clip))
 	optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
-	final_learning_rate = 1e-4
+	final_learning_rate = 1e-6
 	decay_factor = 0.95
 	total_time = 0
 
@@ -128,11 +155,10 @@ def main(args):
 
 		elapsed_time = (time.time() - start_time) / 60.
 		total_time += elapsed_time
-		print("	done in {} min, lr = {}, total {} min".format(int(elapsed_time), optimizer.alpha, int(total_time)))
+		print("	done in {} min, lr = {}, total {} min".format(int(elapsed_time), get_current_learning_rate(optimizer), int(total_time)))
 
 		# decay learning rate
-		if optimizer.alpha > final_learning_rate:
-			optimizer.alpha *= decay_factor
+		decay_learning_rate(optimizer, decay_factor, final_learning_rate)
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
@@ -145,6 +171,7 @@ if __name__ == "__main__":
 	parser.add_argument("--weight-decay", "-wd", type=float, default=0) 
 	parser.add_argument("--learning-rate", "-lr", type=float, default=0.01)
 	parser.add_argument("--momentum", "-mo", type=float, default=0.9)
+	parser.add_argument("--optimizer", "-opt", type=str, default="nesterov")
 	parser.add_argument("--kernel-size", "-ksize", type=int, default=4)
 	parser.add_argument("--ndim-h", "-nh", type=int, default=640)
 	parser.add_argument("--ndim-embedding", "-ne", type=int, default=640)

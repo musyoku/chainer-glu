@@ -95,7 +95,7 @@ class RNNModel(Chain):
 		self.kernel_size = kernel_size
 		self.weightnorm = weightnorm
 		self.dropout = dropout
-		self.dropout_ratio = 0.5
+		self.dropout_ratio = 0.3
 		self.wgain = wgain
 		self.ignore_label = ignore_label
 
@@ -111,8 +111,8 @@ class RNNModel(Chain):
 			self.get_glu_layer(i).reset_state()
 
 	def _forward_layer(self, layer_index, in_data):
-		rnn = self.get_glu_layer(layer_index)
-		out_data = rnn(in_data)
+		glu = self.get_glu_layer(layer_index)
+		out_data = glu(in_data)
 		return out_data
 
 	def __call__(self, X, return_last=False):
