@@ -67,7 +67,7 @@ def main(args):
 		model.to_gpu()
 
 	# setup an optimizer
-	optimizer = optimizers.Adam(alpha=args.learning_rate, beta1=0.9)
+	optimizer = optimizers.Adam(alpha=args.learning_rate, beta1=args.momentum)
 	optimizer.setup(model)
 	optimizer.add_hook(chainer.optimizer.GradientClipping(args.grad_clip))
 	optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
@@ -142,8 +142,9 @@ if __name__ == "__main__":
 	parser.add_argument("--batchsize", "-b", type=int, default=24)
 	parser.add_argument("--epoch", "-e", type=int, default=1000)
 	parser.add_argument("--grad-clip", "-gc", type=float, default=1) 
-	parser.add_argument("--weight-decay", "-wd", type=float, default=2e-5) 
+	parser.add_argument("--weight-decay", "-wd", type=float, default=0) 
 	parser.add_argument("--learning-rate", "-lr", type=float, default=0.01)
+	parser.add_argument("--momentum", "-mo", type=float, default=0.9)
 	parser.add_argument("--kernel-size", "-ksize", type=int, default=4)
 	parser.add_argument("--ndim-h", "-nh", type=int, default=640)
 	parser.add_argument("--ndim-embedding", "-ne", type=int, default=640)
