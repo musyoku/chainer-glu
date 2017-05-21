@@ -161,7 +161,7 @@ class RNNModel(Chain):
 		out_data = self._forward_layer_one_step(0, enmbedding)[:, :, -ksize:]
 		for layer_index in xrange(1, self.num_blocks * self.num_layers_per_block):
 			out_data = self._forward_layer_one_step(layer_index, out_data)[:, :, -ksize:]
-			if layer_index % self.num_layers_per_block == 0:
+			if (layer_index + 1) % self.num_layers_per_block == 0:
 				if self.dropout:
 					out_data = F.dropout(out_data, ratio=self.dropout_ratio)
 				out_data += residual_input
