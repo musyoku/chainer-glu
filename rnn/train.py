@@ -70,15 +70,9 @@ def main(args):
 			print("{}	{}".format(size, len(data)))
 
 	# to maintain equilibrium
-	min_num_data = 0
-	for data in train_buckets:
-		if min_num_data == 0 or len(data) < min_num_data:
-			min_num_data = len(data)
-	min_num_data = min_num_data // args.batchsize
-
 	repeats = []
 	for data in train_buckets:
-		repeat = len(data) // args.batchsize
+		repeat = len(data) // args.batchsize + 1
 		repeats.append(repeat)
 
 	# init
@@ -106,7 +100,7 @@ def main(args):
 		start_time = time.time()
 
 		with chainer.using_config("train", True):
-			for bucket_index, (repeat, dataset) in enumerate(zip(repeats, train_buckets)):
+			for bucket_idx, (repeat, dataset) in enumerate(zip(repeats, train_buckets)):
 				for itr in xrange(repeat):
 					data_batch = dataset[:args.batchsize]
 					source_batch, target_batch = make_source_target_pair(data_batch)
@@ -120,17 +114,17 @@ def main(args):
 					loss = softmax_cross_entropy(y_batch, target_batch, ignore_label=ID_PAD)
 					optimizer.update(lossfun=lambda: loss)
 
-					dataset = np.roll(dataset, args.batchsize)	# shift
+					dataset = np.roll(dataset, -args.batchsize)	# shift
 
 					sys.stdout.write("\r" + stdout.CLEAR)
-					sys.stdout.write("\rbucket {}/{} - iteration {}/{}".format(bucket_index + 1, len(train_buckets), itr, repeat))
+					sys.stdout.write("\rbucket {}/{} - iteration {}/{}".format(bucket_idx + 1, len(train_buckets), itr + 1, repeat))
 					sys.stdout.flush()
 
-				train_buckets[bucket_index] = dataset
+				train_buckets[bucket_idx] = dataset
 
 			# shuffle
-			for bucket_index in xrange(len(train_buckets)):
-				np.random.shuffle(train_buckets[bucket_index])
+			for bucket_idx in xrange(len(train_buckets)):
+				np.random.shuffle(train_buckets[bucket_idx])
 
 		# serialize
 		save_model(args.model_dir, model)
