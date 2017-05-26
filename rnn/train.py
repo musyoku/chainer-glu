@@ -10,7 +10,7 @@ from chainer import training, Variable, optimizers, cuda
 from chainer.training import extensions
 from model import RNNModel, load_model, save_model, save_vocab
 from common import ID_UNK, ID_PAD, ID_BOS, ID_EOS, bucket_sizes, stdout, print_bold
-from dataset import read_data, make_buckets, sample_batch_from_bucket, make_source_target_pair
+from dataset import read_data, make_buckets, make_source_target_pair
 from error import compute_accuracy, compute_random_accuracy, compute_perplexity, compute_random_perplexity, softmax_cross_entropy
 
 def get_current_learning_rate(opt):
@@ -74,16 +74,12 @@ def main(args):
 	for data in train_buckets:
 		if min_num_data == 0 or len(data) < min_num_data:
 			min_num_data = len(data)
+	min_num_data = min_num_data // args.batchsize
+
 	repeats = []
 	for data in train_buckets:
-		repeat = len(data) // min_num_data
-		repeat = repeat + 1 if repeat == 0 else repeat
+		repeat = len(data) // args.batchsize
 		repeats.append(repeat)
-
-	num_updates_per_iteration = 0
-	for repeat, data in zip(repeats, train_buckets):
-		num_updates_per_iteration += repeat * args.batchsize
-	num_iteration = len(dataset_train) // num_updates_per_iteration + 1
 
 	# init
 	model = load_model(args.model_dir)
@@ -98,8 +94,7 @@ def main(args):
 	optimizer.setup(model)
 	optimizer.add_hook(chainer.optimizer.GradientClipping(args.grad_clip))
 	optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
-	final_learning_rate = 1e-6
-	decay_factor = 0.95
+	final_learning_rate = 1e-4
 	total_time = 0
 
 	def mean(l):
@@ -111,21 +106,31 @@ def main(args):
 		start_time = time.time()
 
 		with chainer.using_config("train", True):
-			for itr in xrange(1, num_iteration + 1):
-				for bucket_index, (repeat, dataset) in enumerate(zip(repeats, train_buckets)):
-					for r in xrange(repeat):
-						batch = sample_batch_from_bucket(dataset, args.batchsize)
-						source, target = make_source_target_pair(batch)
-						if model.xp is cuda.cupy:
-							source = cuda.to_gpu(source)
-							target = cuda.to_gpu(target)
-						model.reset_state()
-						Y = model(source)
-						loss = softmax_cross_entropy(Y, target, ignore_label=ID_PAD)
-						optimizer.update(lossfun=lambda: loss)
+			for bucket_index, (repeat, dataset) in enumerate(zip(repeats, train_buckets)):
+				for itr in xrange(repeat):
+					data_batch = dataset[:args.batchsize]
+					source_batch, target_batch = make_source_target_pair(data_batch)
 
-					sys.stdout.write("\riteration {}/{} bucket {}/{}".format(itr, num_iteration, bucket_index + 1, len(train_buckets)))
+					if model.xp is cuda.cupy:
+						source_batch = cuda.to_gpu(source_batch)
+						target_batch = cuda.to_gpu(target_batch)
+
+					model.reset_state()
+					y_batch = model(source_batch)
+					loss = softmax_cross_entropy(y_batch, target_batch, ignore_label=ID_PAD)
+					optimizer.update(lossfun=lambda: loss)
+
+					dataset = np.roll(dataset, args.batchsize)	# shift
+
+					sys.stdout.write("\r" + stdout.CLEAR)
+					sys.stdout.write("\rbucket {}/{} - iteration {}/{}".format(bucket_index + 1, len(train_buckets), itr, repeat))
 					sys.stdout.flush()
+
+				train_buckets[bucket_index] = dataset
+
+			# shuffle
+			for bucket_index in xrange(len(train_buckets)):
+				np.random.shuffle(train_buckets[bucket_index])
 
 		# serialize
 		save_model(args.model_dir, model)
@@ -158,29 +163,35 @@ def main(args):
 		print("	done in {} min, lr = {}, total {} min".format(int(elapsed_time), get_current_learning_rate(optimizer), int(total_time)))
 
 		# decay learning rate
-		decay_learning_rate(optimizer, decay_factor, final_learning_rate)
+		decay_learning_rate(optimizer, args.lr_decay, final_learning_rate)
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--train-filename", "-train", default=None)
-	parser.add_argument("--dev-filename", "-dev", default=None)
-	parser.add_argument("--gpu-device", "-g", type=int, default=0) 
 	parser.add_argument("--batchsize", "-b", type=int, default=24)
 	parser.add_argument("--epoch", "-e", type=int, default=1000)
 	parser.add_argument("--grad-clip", "-gc", type=float, default=1) 
-	parser.add_argument("--weight-decay", "-wd", type=float, default=0) 
-	parser.add_argument("--learning-rate", "-lr", type=float, default=0.01)
-	parser.add_argument("--momentum", "-mo", type=float, default=0.9)
+	parser.add_argument("--weight-decay", "-wd", type=float, default=2e-5) 
+	parser.add_argument("--learning-rate", "-lr", type=float, default=0.1)
+	parser.add_argument("--lr-decay", "-decay", type=float, default=0.95)
+	parser.add_argument("--momentum", "-mo", type=float, default=0.99)
 	parser.add_argument("--optimizer", "-opt", type=str, default="nesterov")
+	
 	parser.add_argument("--kernel-size", "-ksize", type=int, default=4)
 	parser.add_argument("--ndim-h", "-nh", type=int, default=640)
 	parser.add_argument("--ndim-embedding", "-ne", type=int, default=640)
 	parser.add_argument("--num-layers-per-block", "-layers", type=int, default=2)
 	parser.add_argument("--num-blocks", "-blocks", type=int, default=1)
+	parser.add_argument("--pooling", "-p", type=str, default="fo")
 	parser.add_argument("--wgain", "-w", type=float, default=1)
+
 	parser.add_argument("--dropout", "-dropout", default=False, action="store_true")
 	parser.add_argument("--weightnorm", "-weightnorm", default=False, action="store_true")
+	
+	parser.add_argument("--gpu-device", "-g", type=int, default=0) 
+	parser.add_argument("--interval", type=int, default=100)
 	parser.add_argument("--buckets-slice", type=int, default=None)
 	parser.add_argument("--model-dir", "-m", type=str, default="model")
+	parser.add_argument("--train-filename", "-train", default=None)
+	parser.add_argument("--dev-filename", "-dev", default=None)
 	args = parser.parse_args()
 	main(args)
