@@ -70,10 +70,12 @@ def main(args):
 			print("{}	{}".format(size, len(data)))
 
 	# to maintain equilibrium
-	repeats = []
+	required_interations = []
 	for data in train_buckets:
-		repeat = len(data) // args.batchsize + 1
-		repeats.append(repeat)
+		itr = len(data) // args.batchsize + 1
+		required_interations.append(itr)
+	total_iterations = sum(required_interations)
+	buckets_distribution = np.asarray(required_interations, dtype=float) / total_iterations
 
 	# init
 	model = load_model(args.model_dir)
@@ -100,31 +102,30 @@ def main(args):
 		start_time = time.time()
 
 		with chainer.using_config("train", True):
-			for bucket_idx, (repeat, dataset) in enumerate(zip(repeats, train_buckets)):
-				for itr in xrange(repeat):
-					data_batch = dataset[:args.batchsize]
-					source_batch, target_batch = make_source_target_pair(data_batch)
+			for itr in xrange(total_iterations):
+				bucket_idx = int(np.random.choice(np.arange(len(train_buckets)), size=1, p=buckets_distribution))
+				dataset = train_buckets[bucket_idx]
+				data_batch = dataset[:args.batchsize]
+				source_batch, target_batch = make_source_target_pair(data_batch)
 
-					if model.xp is cuda.cupy:
-						source_batch = cuda.to_gpu(source_batch)
-						target_batch = cuda.to_gpu(target_batch)
+				if model.xp is cuda.cupy:
+					source_batch = cuda.to_gpu(source_batch)
+					target_batch = cuda.to_gpu(target_batch)
 
-					model.reset_state()
-					y_batch = model(source_batch)
-					loss = softmax_cross_entropy(y_batch, target_batch, ignore_label=ID_PAD)
-					optimizer.update(lossfun=lambda: loss)
+				model.reset_state()
+				y_batch = model(source_batch)
+				loss = softmax_cross_entropy(y_batch, target_batch, ignore_label=ID_PAD)
+				optimizer.update(lossfun=lambda: loss)
 
-					dataset = np.roll(dataset, -args.batchsize, axis=0)	# shift
+				sys.stdout.write("\r" + stdout.CLEAR)
+				sys.stdout.write("\riteration {}/{}".format(itr + 1, total_iterations))
+				sys.stdout.flush()
 
-					sys.stdout.write("\r" + stdout.CLEAR)
-					sys.stdout.write("\rbucket {}/{} - iteration {}/{}".format(bucket_idx + 1, len(train_buckets), itr + 1, repeat))
-					sys.stdout.flush()
-
-				train_buckets[bucket_idx] = dataset
+				train_buckets[bucket_idx] = np.roll(dataset, -args.batchsize, axis=0)	# shift
 
 			# shuffle
-			for bucket_idx in xrange(len(train_buckets)):
-				np.random.shuffle(train_buckets[bucket_idx])
+			for bucket in train_buckets:
+				np.random.shuffle(bucket)
 
 		# serialize
 		save_model(args.model_dir, model)
@@ -175,10 +176,9 @@ if __name__ == "__main__":
 	parser.add_argument("--ndim-embedding", "-ne", type=int, default=640)
 	parser.add_argument("--num-layers-per-block", "-layers", type=int, default=2)
 	parser.add_argument("--num-blocks", "-blocks", type=int, default=1)
-	parser.add_argument("--pooling", "-p", type=str, default="fo")
 	parser.add_argument("--wgain", "-w", type=float, default=1)
 
-	parser.add_argument("--dropout", "-dropout", default=False, action="store_true")
+	parser.add_argument("--dropout", "-dropout", type=float, default=0)
 	parser.add_argument("--weightnorm", "-weightnorm", default=False, action="store_true")
 	
 	parser.add_argument("--gpu-device", "-g", type=int, default=0) 

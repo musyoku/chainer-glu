@@ -80,7 +80,7 @@ def load_model(dirname):
 		return None
 
 class RNNModel(Chain):
-	def __init__(self, vocab_size, ndim_embedding, num_blocks, num_layers_per_block, ndim_h, kernel_size=4, dropout=False, weightnorm=False, wgain=1, ignore_label=None):
+	def __init__(self, vocab_size, ndim_embedding, num_blocks, num_layers_per_block, ndim_h, kernel_size=4, dropout=0, weightnorm=False, wgain=1, ignore_label=None):
 		super(RNNModel, self).__init__(
 			embed=L.EmbedID(vocab_size, ndim_embedding, ignore_label=ignore_label),
 			dense=L.Linear(ndim_h, vocab_size),
@@ -95,7 +95,7 @@ class RNNModel(Chain):
 		self.kernel_size = kernel_size
 		self.weightnorm = weightnorm
 		self.dropout = dropout
-		self.dropout_ratio = 0.4
+		self.using_dropout = True if dropout > 0 else False
 		self.wgain = wgain
 		self.ignore_label = ignore_label
 
@@ -126,8 +126,8 @@ class RNNModel(Chain):
 		for layer_index in xrange(1, self.num_blocks * self.num_layers_per_block):
 			out_data = self._forward_layer(layer_index, out_data)
 			if (layer_index + 1) % self.num_layers_per_block == 0:
-				if self.dropout:
-					out_data = F.dropout(out_data, ratio=self.dropout_ratio)
+				if self.using_dropout:
+					out_data = F.dropout(out_data, ratio=self.dropout)
 				out_data += residual_input
 				residual_input = out_data
 
@@ -162,8 +162,8 @@ class RNNModel(Chain):
 		for layer_index in xrange(1, self.num_blocks * self.num_layers_per_block):
 			out_data = self._forward_layer_one_step(layer_index, out_data)[:, :, -ksize:]
 			if (layer_index + 1) % self.num_layers_per_block == 0:
-				if self.dropout:
-					out_data = F.dropout(out_data, ratio=self.dropout_ratio)
+				if self.using_dropout:
+					out_data = F.dropout(out_data, ratio=self.dropout)
 				out_data += residual_input
 				residual_input = out_data
 
