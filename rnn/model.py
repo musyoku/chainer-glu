@@ -1,3 +1,4 @@
+from __future__ import division
 import sys, os, json, pickle, math
 import chainer.functions as F
 from six.moves import xrange
