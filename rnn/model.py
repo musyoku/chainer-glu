@@ -1,7 +1,7 @@
-import sys, os, json, pickle
+import sys, os, json, pickle, math
 import chainer.functions as F
 from six.moves import xrange
-from chainer import Chain, serializers
+from chainer import Chain, serializers, initializers
 sys.path.append(os.path.split(os.getcwd())[0])
 import glu as L
 
@@ -83,7 +83,7 @@ class RNNModel(Chain):
 	def __init__(self, vocab_size, ndim_embedding, num_blocks, num_layers_per_block, ndim_h, kernel_size=4, dropout=0, weightnorm=False, wgain=1, ignore_label=None):
 		super(RNNModel, self).__init__(
 			embed=L.EmbedID(vocab_size, ndim_embedding, ignore_label=ignore_label),
-			dense=L.Linear(ndim_h, vocab_size),
+			dense=L.Convolution1D(ndim_h, vocab_size, ksize=1, stride=1, pad=0, weightnorm=weightnorm, initialW=initializers.Normal(math.sqrt(wgain / ndim_h)))
 		)
 		assert num_blocks > 0
 		assert num_layers_per_block > 0
@@ -134,10 +134,10 @@ class RNNModel(Chain):
 		if return_last:
 			out_data = out_data[:, :, -1, None]
 
-		out_data = F.reshape(F.swapaxes(out_data, 1, 2), (-1, self.ndim_h))
-		Y = self.dense(out_data)
+		out_data = self.dense(out_data)
+		out_data = F.reshape(F.swapaxes(out_data, 1, 2), (-1, self.vocab_size))
 
-		return Y
+		return out_data
 
 	def _forward_layer_one_step(self, layer_index, in_data):
 		glu = self.get_glu_layer(layer_index)
@@ -167,8 +167,8 @@ class RNNModel(Chain):
 				out_data += residual_input
 				residual_input = out_data
 
-		out_data = out_data[:, :, -1, None]
-		out_data = F.reshape(F.swapaxes(out_data, 1, 2), (-1, self.ndim_h))
-		Y = self.dense(out_data)
+		out_data = out_data[..., -1, None]
+		out_data = self.dense(out_data)
+		out_data = F.reshape(F.swapaxes(out_data, 1, 2), (-1, self.vocab_size))
 
-		return Y
+		return out_data
