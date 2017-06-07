@@ -17,7 +17,7 @@ def Convolution1D(in_channels, out_channels, ksize, stride=1, pad=0, initialW=No
 class GLU(link.Chain):
 	def __init__(self, in_channels, out_channels, kernel_size=2, wgain=1., weightnorm=False):
 		wstd = math.sqrt(wgain / in_channels / kernel_size)
-		super(GLU, self).__init__(W=Convolution1D(in_channels, 2 * out_channels, kernel_size, stride=1, pad=kernel_size - 1, weightnorm=weightnorm, initialW=initializers.Normal(wstd)))
+		super(GLU, self).__init__(W=Convolution1D(in_channels, 2 * out_channels, kernel_size, stride=1, pad=kernel_size - 1, weightnorm=weightnorm, initialW=initializers.HeNormal(wstd)))
 		self._in_channels, self._out_channels, self._kernel_size, = in_channels, out_channels, kernel_size
 		self.reset_state()
 

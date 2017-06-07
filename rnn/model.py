@@ -84,7 +84,7 @@ class RNNModel(Chain):
 	def __init__(self, vocab_size, ndim_embedding, num_blocks, num_layers_per_block, ndim_h, kernel_size=4, dropout=0, weightnorm=False, wgain=1, ignore_label=None):
 		super(RNNModel, self).__init__(
 			embed=L.EmbedID(vocab_size, ndim_embedding, ignore_label=ignore_label),
-			dense=L.Convolution1D(ndim_h, vocab_size, ksize=1, stride=1, pad=0, weightnorm=weightnorm, initialW=initializers.Normal(math.sqrt(wgain / ndim_h)))
+			dense=L.Convolution1D(ndim_h, vocab_size, ksize=1, stride=1, pad=0, weightnorm=weightnorm, initialW=initializers.HeNormal(math.sqrt(wgain / ndim_h)))
 		)
 		assert num_blocks > 0
 		assert num_layers_per_block > 0
