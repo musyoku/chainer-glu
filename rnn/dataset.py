@@ -2,12 +2,10 @@
 import codecs, random
 import numpy as np
 from six.moves import xrange
-from common import ID_UNK, ID_PAD, ID_BOS, ID_EOS, bucket_sizes
+from common import ID_PAD, ID_BOS, ID_EOS, bucket_sizes
 
 def read_data(filename_train=None, filename_dev=None, filename_test=None):
 	vocab = {
-		"<pad>": ID_PAD,
-		"<unk>": ID_UNK,
 		"<bos>": ID_BOS,
 		"<eos>": ID_EOS,
 	}
